@@ -41,11 +41,11 @@ declare database='pdv.db'
 declare INI_FILE="pdv.ini"
 trap 'cleanup' INT TERM HUP
 declare -A Aempresa=(
-	[razao]='EMPRESA MODELO LTDA'
-	[ende]='Rua Modelo, 693 - Bairro Centro'
-	[cida]='Cidade Modelo'
-	[uf]='UF'
-	[cnpj]='00.000.000/0001-00'
+   [razao]='EMPRESA MODELO LTDA'
+   [ende]='Rua Modelo, 693 - Bairro Centro'
+   [cida]='Cidade Modelo'
+   [uf]='UF'
+   [cnpj]='00.000.000/0001-00'
 )
 declare -a DEPENDENCIES=(
 	tput
@@ -67,16 +67,16 @@ declare -A PACKAGEDEP=(
 	['awk']='gawk'
 	['figlet']='figlet'
 )
-readonly K_UP=5     # Ctrl-E
-readonly K_DOWN=24  # Ctrl-X
-readonly K_LEFT=19  # Ctrl-S
-readonly K_RIGHT=4  # Ctrl-D
-readonly K_HOME=1   # Ctrl-A
-readonly K_END=6    # Ctrl-F
-readonly K_PGUP=18  # Ctrl-R
-readonly K_PGDN=3   # Ctrl-C
-readonly K_ENTER=13 # Enter
-readonly K_ESC=27   # Esc
+readonly K_UP=5       # Ctrl-E
+readonly K_DOWN=24    # Ctrl-X
+readonly K_LEFT=19    # Ctrl-S
+readonly K_RIGHT=4    # Ctrl-D
+readonly K_HOME=1     # Ctrl-A
+readonly K_END=6      # Ctrl-F
+readonly K_PGUP=18    # Ctrl-R
+readonly K_PGDN=3     # Ctrl-C
+readonly K_ENTER=13   # Enter
+readonly K_ESC=27     # Esc
 
 # BEGIN FUNCTIONS
 function cleanup() {
@@ -272,8 +272,8 @@ function sh_setup_Packages() {
 	local packagesToInstall="${PACKAGEDEP[@]}"
 	local DISTRO=$(detect_distro)
 
-	echo $DISTRO
-	exit 0
+echo $DISTRO
+exit 0
 	case "$DISTRO" in
 	void)
 		msg_info "Instalando necessários pacotes para VOID"
@@ -282,11 +282,10 @@ function sh_setup_Packages() {
 		;;
 	chili | chililinux | arch | manjaro | biglinux)
 		msg_info "Instalando necessários pacotes para ${DISTRO^^}VOID"
-		sudo pacman -Sy --needed --quiet --noconfirm "${PACKAGEDEP[@]}" 1>/dev/null
-		return "$?"
+      sudo pacman -Sy --needed --quiet --noconfirm "${PACKAGEDEP[@]}" 1>/dev/null
+      return "$?"
 		;;
-	*)
-		return 1
+	*) return 1
 		;;
 	esac
 }
@@ -941,81 +940,19 @@ function box() {
 	tput sgr0
 }
 
-read_manual() {
-	local result=""
-	local char
-
-	while true; do
-		# lê um caractere sem eco
-		IFS= read -rsn1 char
-
-		case "$char" in
-		$'\e') # ESC
-			echo "__ESC__"
-			return 27
-			;;
-		$'\n') # ENTER
-			echo "$result"
-			return 0
-			;;
-		$'\177') # Backspace
-			if [[ -n "$result" ]]; then
-				result="${result:0:-1}"
-				printf "\b \b"
-			fi
-			;;
-		*)
-			result+="$char"
-			printf "%s" "$char"
-			;;
-		esac
-	done
-}
-
-get() {
+function get() {
 	local row="$1"
 	local col="$2"
 	local prompt="$3"
-	local new_value="$4" # nome da variável de saída
-	local old_value="$5" # valor inicial
+	local new_value="$4"
+	local old_value="$5"
 	local color="${Acores[box]}"
-	local input="" k
-
-	# valor inicial visível/editável
-	input="$old_value"
 
 	setpos "$row" "$col"
-	printf "%s%s%s" "$reset" "$color" "$prompt"
-	printf "%s%s" "$reverse" "$input"
-
-	while true; do
-		IFS= read -rsn1 k
-		case "$k" in
-		$'\e')
-			# limpa resto da sequência ANSI
-			while read -rsn1 -t 0.01; do :; done
-			printf "%s" "$reset"
-			return 1
-			;;
-		"" | $'\n' | $'\r')
-			printf "%s" "$reset"
-			break
-			;;
-		$'\177' | $'\b')
-			if [[ -n "$input" ]]; then
-				input="${input:0:-1}"
-				printf "\b \b"
-			fi
-			;;
-		*)
-			input+="$k"
-			printf "%s%s" "$k" "$reverse"
-			;;
-		esac
-	done
-
-	printf -v "$new_value" '%s' "$input"
-	return 0
+	printf "%s" "${reset}$color"
+	read -p "${prompt}${reverse}" -e -i "$old_value" "$new_value"
+	tput sc # Salva a posição atual do cursor
+	echo -e "$reset"
 }
 
 function readconf() {
@@ -1096,42 +1033,36 @@ function readnotconf() {
 }
 
 read_key() {
-	local k seq
+  local k seq
 
-	IFS= read -rsn1 k || return 1
+  IFS= read -rsn1 k || return 1
 
-	case "$k" in
-	$'\e')
-		if IFS= read -rsn1 -t 0.01 seq && [[ $seq == "[" ]]; then
-			IFS= read -rsn1 seq
-			case "$seq" in
-			A) echo "$K_UP" ;;
-			B) echo "$K_DOWN" ;;
-			C) echo "$K_RIGHT" ;;
-			D) echo "$K_LEFT" ;;
-			H) echo "$K_HOME" ;;
-			F) echo "$K_END" ;;
-			5)
-				read -rsn1
-				echo "$K_PGUP"
-				;;
-			6)
-				read -rsn1
-				echo "$K_PGDN"
-				;;
-			*) echo "$K_ESC" ;;
-			esac
-		else
-			echo "$K_ESC"
-		fi
-		;;
-	"")
-		echo "$K_ENTER"
-		;;
-	*)
-		printf '%d\n' "'$k"
-		;;
-	esac
+  case "$k" in
+    $'\e')
+      if IFS= read -rsn1 -t 0.01 seq && [[ $seq == "[" ]]; then
+        IFS= read -rsn1 seq
+        case "$seq" in
+          A) echo "$K_UP" ;;
+          B) echo "$K_DOWN" ;;
+          C) echo "$K_RIGHT" ;;
+          D) echo "$K_LEFT" ;;
+          H) echo "$K_HOME" ;;
+          F) echo "$K_END" ;;
+          5) read -rsn1; echo "$K_PGUP" ;;
+          6) read -rsn1; echo "$K_PGDN" ;;
+          *) echo "$K_ESC" ;;
+        esac
+      else
+        echo "$K_ESC"
+      fi
+      ;;
+    "")
+      echo "$K_ENTER"
+      ;;
+    *)
+      printf '%d\n' "'$k"
+      ;;
+  esac
 }
 
 function print() {
@@ -1178,25 +1109,11 @@ function yesno() {
 			printf "\e[$((linha + i + 4));%sH${item_formatado}${rst}" "$((coluna + 2))"
 		done
 
-		read -rsn1 tecla
-		case "$tecla" in
-		$'\e')
-			# ESC puro ou início de sequência ANSI
-			if read -rsn1 -t 0.01 t1 && [[ $t1 == "[" ]]; then
-				read -rsn1 t2
-				case "$t2" in
-				A) ((selecionado = selecionado > 0 ? selecionado - 1 : quantidade_itens - 1)) ;; # ↑
-				B) ((selecionado = selecionado < quantidade_itens - 1 ? selecionado + 1 : 0)) ;; # ↓
-				C) ((selecionado = selecionado < quantidade_itens - 1 ? selecionado + 1 : 0)) ;; # →
-				D) ((selecionado = selecionado > 0 ? selecionado - 1 : quantidade_itens - 1)) ;; # ←
-				esac
-			else
-				return 1 # ESC puro
-			fi
-			;;
-		"" | $'\n' | $'\r')
-			return $((selecionado)) # ENTER → SEMPRE com argumento
-			;;
+		read -r -n 1 -s tecla
+		case $tecla in
+		"A") ((selecionado = selecionado > 0 ? selecionado - 1 : quantidade_itens - 1)) ;;
+		"B") ((selecionado = selecionado < quantidade_itens - 1 ? selecionado + 1 : 0)) ;;
+		"") return $((selecionado)) ;;
 		esac
 	done
 }
@@ -1501,7 +1418,7 @@ function produto_inclusao_alteracao() {
 		else
 			print 12 11 "$cdesc         : "
 		fi
-		print 13 11 "$(gettext "Cod Fabricante")       : "
+		print 13 11 "$(gettext "Fabricante")           : "
 		print 14 11 "$(gettext "Código Barras")        : "
 		print 15 11 "$(gettext "Unidade")              : "
 		print 16 11 "$(gettext "Estoque mínimo")       : "
@@ -1510,7 +1427,7 @@ function produto_inclusao_alteracao() {
 
 		while true; do
 			if ((IsInclusao)); then
-				get 12 11 "$cdesc            : " nome || return
+				get 12 11 "$cdesc            : " nome
 				if [[ -z "$nome" ]]; then
 					setpos "$posmsg" 10
 					if readconf "$(gettext "Descrição não pode ser em branco. Cancelar?")"; then
@@ -1519,7 +1436,7 @@ function produto_inclusao_alteracao() {
 				fi
 				break
 			else
-				get 12 11 "$cdesc         : " nome || return
+				get 12 11 "$cdesc         : " nome
 				if [[ -n "$nome" ]]; then
 					if [[ $nome =~ ^[0-9]+$ ]]; then
 						IsLike=0
@@ -1550,7 +1467,7 @@ function produto_inclusao_alteracao() {
 		done
 
 		while true; do
-			get 13 11 "$(gettext "Cod Fabricante")       : " fabricante "$p_fabricante"
+			get 13 11 "$(gettext "Fabricante")           : " fabricante "$p_fabricante"
 			if [[ -n "$fabricante" ]]; then
 				if [[ $fabricante =~ ^[0-9]+$ ]]; then
 					IsLike=0
@@ -1627,7 +1544,7 @@ function produto_inclusao_alteracao() {
 }
 
 function produto_exclusao() {
-	local xtitle="$(gettext "EXCLUSÃO DE PRODUTO")"
+	local xtitle="$(gettext "REMOÇÃO DE PRODUTO")"
 	local identificador
 	local half_lastcol=$(($(lastcol) / 2))
 	local posmsg=21
@@ -1649,7 +1566,7 @@ function produto_exclusao() {
 		print 18 11 "$(gettext "Data validade")        : "
 		print 19 11 "$(gettext "Preço (ex: 4.99 ou 5)"): "
 
-		get 12 11 "$(gettext "ID/Nome")              : " identificador || return
+		get 12 11 "$(gettext "ID/Nome")              : " identificador
 		identificador=${identificador^^}
 
 		if [[ -z "$identificador" ]]; then
@@ -1743,7 +1660,7 @@ function produto_pesquisa() {
 		tela
 		titulo 1 "$(gettext "PESQUISAR PRODUTOS")" "${Acores[statussup]}"
 		box "$nTop" 0 3 $(($(lastcol) - 1)) "$(gettext "PESQUISAR PRODUTOS")" "${Acores[box]}"
-		get $((nTop + 1)) 1 "$(gettext "Pesquisar por: nome, id <x>|<x-y>, f<id> ou *=tudo") : " identificador || return
+		get $((nTop + 1)) 1 "$(gettext "Pesquisar por: nome, id <x>|<x-y>, f<id> ou *=tudo") : " identificador
 
 		[[ -z "$identificador" ]] && return
 		[[ "$identificador" == "*" ]] && identificador=
@@ -1822,7 +1739,7 @@ function relatorio_produtos_minimo() {
 		tela
 		titulo 1 "$xtitle" "${Acores[statussup]}"
 		box "$nTop" 0 3 $(($(lastcol) - 1)) "$xtitle" "${Acores[box]}"
-		get $((nTop + 1)) 1 "$(gettext "Pesquisar por: nome, id <x>|<x-y>, f<id> ou *=tudo") : " identificador || return
+		get $((nTop + 1)) 1 "$(gettext "Pesquisar por: nome, id <x>|<x-y>, f<id> ou *=tudo") : " identificador
 
 		[[ -z "$identificador" ]] && return
 		[[ "$identificador" == "*" ]] && identificador=
@@ -1903,7 +1820,7 @@ function relatorio_produtos_fora_validade() {
 		tela
 		titulo 1 "$xtitle" "${Acores[statussup]}"
 		box "$nTop" 0 3 $(($(lastcol) - 1)) "$xtitle" "${Acores[box]}"
-		get $((nTop + 1)) 1 "$(gettext "Pesquisar por: nome, id <x>|<x-y>, f<id> ou *=tudo") : " identificador || return
+		get $((nTop + 1)) 1 "$(gettext "Pesquisar por: nome, id <x>|<x-y>, f<id> ou *=tudo") : " identificador
 
 		[[ -z "$identificador" ]] && return
 		[[ "$identificador" == "*" ]] && identificador=
@@ -1992,7 +1909,7 @@ function fornecedor_inclusao() {
 		print 16 11 "$(gettext "Cnpj")                 : "
 
 		while true; do
-			get 12 11 "$(gettext "Nome")                 : " nome || return
+			get 12 11 "$(gettext "Nome")                 : " nome
 			if [[ -n "$nome" ]]; then
 				if fornecedor_info=$(dbseek fornecedor nome "$nome" "$IsHeader" "$IsLike") && [ -n "$fornecedor_info" ]; then
 					IFS='|' read -r fornecedor_id fornecedor_data fornecedor_nome fornecedor_ende fornecedor_cida fornecedor_esta fornecedor_cnpj <<<"$fornecedor_info"
@@ -2060,7 +1977,7 @@ function fornecedor_alteracao() {
 		print 16 11 "$(gettext "Estado")               : "
 		print 17 11 "$(gettext "Cnpj")                 : "
 
-		get 12 11 "$(gettext "ID/Nome")              : " identificador || return
+		get 12 11 "$(gettext "ID/Nome")              : " identificador
 		setpos 19 10
 
 		if [[ -z "$identificador" ]]; then
@@ -2139,7 +2056,7 @@ function fornecedor_exclusao() {
 		print 16 11 "$(gettext "Estado")               : "
 		print 17 11 "$(gettext "Cnpj")                 : "
 
-		get 12 11 "$(gettext "ID/Nome")              : " identificador || return
+		get 12 11 "$(gettext "ID/Nome")              : " identificador
 		if [[ -z "$identificador" ]]; then
 			setpos 19 10
 			if readconf "$(gettext "ID/Nome não pode ser em branco. Cancelar?")"; then
@@ -2204,7 +2121,7 @@ function fornecedor_pesquisa() {
 		tela
 		titulo 1 "$xtitle" "${Acores[statussup]}"
 		box "$nTop" 0 3 $(($(lastcol) - 1)) "$xtitle" "${Acores[box]}"
-		get $((nTop + 1)) 1 "$(gettext "Pesquisar por: nome, id <x>|<x-y> ou *=tudo") : " identificador || return
+		get $((nTop + 1)) 1 "$(gettext "Pesquisar por: nome, id <x>|<x-y> ou *=tudo") : " identificador
 
 		[[ -z "$identificador" ]] && return
 		[[ "$identificador" == "*" ]] && identificador=
@@ -2278,7 +2195,7 @@ function relatorio_vendas_diarias() {
 	print $((nTop + 2)) 1 "$(gettext "Data Final")      : "
 
 	while true; do
-		get $((nTop + 1)) 1 "$(gettext "Data Inicial")    : " dini "$data_inicio" || return
+		get $((nTop + 1)) 1 "$(gettext "Data Inicial")    : " dini "$data_inicio"
 		if [[ -n "$dini" ]]; then
 			if validar_data "$dini"; then
 				break
@@ -2295,7 +2212,7 @@ function relatorio_vendas_diarias() {
 	done
 
 	while true; do
-		get $((nTop + 2)) 1 "$(gettext "Data Final")      : " dfim "$data_fim" || return
+		get $((nTop + 2)) 1 "$(gettext "Data Final")      : " dfim "$data_fim"
 		if [[ -n "$dfim" ]]; then
 			if validar_data "$dfim"; then
 				break
@@ -2395,8 +2312,8 @@ function relatorio_produtos_vendidos() {
 		print $((nTop + 1)) 1 "$(gettext "Pesquisar por: docnr, data <dd-mm-aaaa>, id <x>|<x-y>, f<id>, ou *=tudo") : "
 		print $((nTop + 1)) $(($(lastcol) / 2)) "$(gettext "Agrupar : n=docnr, d=data, i=id, f=forn ou *=nenhum") : "
 
-		get $((nTop + 1)) 1 "$(gettext "Pesquisar por: docnr, data <dd-mm-aaaa>, id <x>|<x-y>, f<id>, ou *=tudo") : " identificador || return
-		get $((nTop + 1)) $(($(lastcol) / 2)) "$(gettext "Agrupar : n=docnr, d=data, i=id, f=forn ou *=nenhum") : " index || return
+		get $((nTop + 1)) 1 "$(gettext "Pesquisar por: docnr, data <dd-mm-aaaa>, id <x>|<x-y>, f<id>, ou *=tudo") : " identificador
+		get $((nTop + 1)) $(($(lastcol) / 2)) "$(gettext "Agrupar : n=docnr, d=data, i=id, f=forn ou *=nenhum") : " index
 
 		[[ -z "$identificador" ]] && return
 		[[ "$identificador" == "*" ]] && identificador=
@@ -2539,8 +2456,8 @@ function relatorio_entradas_produtos() {
 		print $((nTop + 1)) 1 "$(gettext "Pesquisar por: docnr, data <dd-mm-aaaa>, id <x>|<x-y>, f<id>, ou *=tudo") : "
 		print $((nTop + 1)) $(($(lastcol) / 2)) "$(gettext "Agrupar : n=docnr, d=data, i=id, f=forn ou *=nenhum") : "
 
-		get $((nTop + 1)) 1 "$(gettext "Pesquisar por: docnr, data <dd-mm-aaaa>, id <x>|<x-y>, f<id>, ou *=tudo") : " identificador || return
-		get $((nTop + 1)) $(($(lastcol) / 2)) "$(gettext "Agrupar : n=docnr, d=data, i=id, f=forn ou *=nenhum") : " index || return
+		get $((nTop + 1)) 1 "$(gettext "Pesquisar por: docnr, data <dd-mm-aaaa>, id <x>|<x-y>, f<id>, ou *=tudo") : " identificador
+		get $((nTop + 1)) $(($(lastcol) / 2)) "$(gettext "Agrupar : n=docnr, d=data, i=id, f=forn ou *=nenhum") : " index
 
 		[[ -z "$identificador" ]] && return
 		[[ "$identificador" == "*" ]] && identificador=
@@ -3406,33 +3323,22 @@ function show_menu_pulldown() {
 			printf "\e[$((linha + 1));%sH${item_formatado}${rst}" "$npos"
 			npos=$((npos + padding + 1))
 		done
-		case "$(read_key)" in
-		"$K_UP")
-			((pselecionadoV = pselecionadoV > 0 ? pselecionadoV - 1 : nItensSubMenu - 2))
-			;;
-
-		"$K_DOWN")
-			((pselecionadoV = pselecionadoV < nItensSubMenu - 2 ? pselecionadoV + 1 : 0))
-			;;
-
-		"$K_LEFT")
+		read -r -n 1 -s tecla
+		case $tecla in
+		"A") ((pselecionadoV = pselecionadoV > 0 ? pselecionadoV - 1 : nItensSubMenu - 2)) ;;
+		"B") ((pselecionadoV = pselecionadoV < nItensSubMenu - 2 ? pselecionadoV + 1 : 0)) ;;
+		"D")
 			pselecionadoV=0
 			((pselecionadoH = pselecionadoH > 0 ? pselecionadoH - 1 : quantidade_itens - 1))
 			;;
-
-		"$K_RIGHT")
+		"C")
 			pselecionadoV=0
 			((pselecionadoH = pselecionadoH < quantidade_itens - 1 ? pselecionadoH + 1 : 0))
 			;;
-
-		"$K_ENTER")
+		"")
 			((++pselecionadoV))
 			((++pselecionadoH))
 			return "${pselecionadoH}${pselecionadoV}"
-			;;
-
-		"$K_ESC")
-			return 1
 			;;
 		esac
 	done
@@ -3572,7 +3478,7 @@ function configuracao::dados_empresa() {
 	print 16 11 "$(gettext "Cnpj")                 : "
 
 	while :; do
-		get 12 11 "$(gettext "Nome")                 : " razao "${Aempresa[razao]}" || return
+		get 12 11 "$(gettext "Nome")                 : " razao "${Aempresa[razao]}"
 		if [[ -n "$razao" ]]; then
 			break
 		else
@@ -3583,10 +3489,10 @@ function configuracao::dados_empresa() {
 		fi
 	done
 
-	get 13 11 "$(gettext "Endereço")             : " ende "${Aempresa[ende]}" || return
-	get 14 11 "$(gettext "Cidade")               : " cida "${Aempresa[cida]}" || return
-	get 15 11 "$(gettext "UF")                   : " uf "${Aempresa[uf]}" || return
-	get 16 11 "$(gettext "Cnpj")                 : " cnpj "${Aempresa[cnpj]}" || return
+	get 13 11 "$(gettext "Endereço")             : " ende "${Aempresa[ende]}"
+	get 14 11 "$(gettext "Cidade")               : " cida "${Aempresa[cida]}"
+	get 15 11 "$(gettext "UF")                   : " uf "${Aempresa[uf]}"
+	get 16 11 "$(gettext "Cnpj")                 : " cnpj "${Aempresa[cnpj]}"
 
 	if yesno 18 10 "$(gettext "Confirma dados?")"; then
 		Aempresa[razao]="$razao"
@@ -3789,7 +3695,7 @@ function sh_main_menu() {
 		opcao="$?"
 
 		case "$opcao" in
-		1 | 11)
+		11)
 			if yesno $((half_lastrow - 6)) $half_lastcol "$(gettext "Pergunta: Deseja realmente Sair?")"; then
 				sh_unsetvarcolors
 				clear
