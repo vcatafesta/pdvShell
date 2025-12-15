@@ -262,13 +262,15 @@ function sh_setup_Packages() {
 	local packagesToInstall="${PACKAGEDEP[@]}"
 	local DISTRO=$(detect_distro)
 
+echo $DISTRO
+exit 0
 	case "$DISTRO" in
 	void)
 		msg_info "Instalando necessários pacotes para VOID"
 		cmd_sudo xbps-install -Sy "${PACKAGEDEP[@]}" 1>/dev/null
 		return "$?"
 		;;
-	chililinux | arch | manjaro | biglinux)
+	chili | chililinux | arch | manjaro | biglinux)
 		msg_info "Instalando necessários pacotes para ${DISTRO^^}VOID"
       sudo pacman -Sy --needed --quiet --noconfirm "${PACKAGEDEP[@]}" 1>/dev/null
       return "$?"
