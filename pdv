@@ -4,9 +4,10 @@
 #	pdv - simple cashier front for small grocery stores made with shell script and sqlite!
 #	Created: 2023/10/21
 #	Altered: 2024/11/20 - 02:21 -04
+#	Updated: dom 14 dez 2025 21:01:44 -04
 #
-# Copyright (c) 2023-2023, Jefferson Carneiro <slackjeff>
-#	Copyright (c) 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>
+#  Copyright (c) 2023-2023, Jefferson Carneiro <slackjeff>
+#	Copyright (c) 2023-2025, Vilmar Catafesta <vcatafesta@gmail.com>
 #	All rights reserved.
 #
 #	Redistribution and use in source and binary forms, with or without
@@ -29,25 +30,50 @@
 #	THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 #	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 #	THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
+################################################################################
 export TEXTDOMAINDIR=/usr/share/locale
-export TEXTDOMAIN=mercearia
-
+export TEXTDOMAIN=pdv
+#
 declare APP="${0##*/}"
-declare _VERSION_="1.6.26-20241120"
-declare _SYSTEM_="$(gettext 'SISTEMA PDV')"
-declare DEPENDENCIES=(tput gettext sqlite3 bc tr sed awk figlet)
-declare -A Aempresa=([razao]='EMPRESA MODELO LTDA' [ende]='Rua Modelo, 693 - Bairro Centro' [cida]='Cidade Modelo' [uf]='UF' [cnpj]='00.000.000/0001-00')
+declare _VERSION_="1.12.14-20251214"
+declare _SYSTEM_='SISTEMA PDV'
 declare database='pdv.db'
 declare INI_FILE="pdv.ini"
 trap 'cleanup' INT TERM HUP
+declare -A Aempresa=(
+   [razao]='EMPRESA MODELO LTDA'
+   [ende]='Rua Modelo, 693 - Bairro Centro'
+   [cida]='Cidade Modelo'
+   [uf]='UF'
+   [cnpj]='00.000.000/0001-00'
+)
+declare -a DEPENDENCIES=(
+	tput
+	gettext
+	sqlite3
+	bc
+	tr
+	sed
+	awk
+	figlet
+)
+declare -A PACKAGEDEP=(
+	['tput']='ncurses'
+	['gettext']='gettext'
+	['sqlite3']='sqlite'
+	['bc']='bc'
+	['tr']='coreutils'
+	['sed']='sed'
+	['awk']='gawk'
+	['figlet']='figlet'
+)
 
 # BEGIN FUNCTIONS
 function cleanup() {
 	tput sgr0
 	tput clear
-	info_msg "${red}$(gettext "Interrompido! Saindo...")${reset}"
-	info_msg "$(gettext "Desativando cores...")"
+	info_msg "${red}Interrompido! Saindo...${reset}"
+	info_msg "Desativando cores..."
 	sh_unsetvarcolors
 	exit 1
 }
@@ -67,7 +93,7 @@ function sh_config() {
 	declare -gi nLeft
 	declare -gi nBottom
 	declare -gi nRight
-	declare -g Mercearia="$(gettext "Mercearia")"
+	declare -g Mercearia='Mercearia'
 	declare -g Menu_Principal="$(gettext "Menu Principal")"
 	declare -g Nenhum_produto_encontrado_nos_parametros_informados="$(gettext "Nenhum produto encontrado nos parâmetros informados")"
 	declare -g Produtos="$(gettext 'Produtos')"
@@ -209,21 +235,73 @@ function sh_unsetvarcolors() {
 	unset preto vermelho verde amarelo azul roxo ciano branca cinza laranja roxa violeta
 }
 
+function detect_distro() {
+	local id=""
+
+	if [[ -r /etc/os-release ]]; then
+		# Lê ID=void|arch|debian|... exatamente como a distro declara
+		id=$(grep -E '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
+	elif [[ -r /usr/lib/os-release ]]; then
+		id=$(grep -E '^ID=' /usr/lib/os-release | cut -d= -f2 | tr -d '"')
+	else
+		echo "unknown"
+		return
+	fi
+	echo "$id"
+}
+
+function cmd_sudo() {
+	if [[ $EUID -eq 0 ]]; then
+		"$@"
+	else
+		sudo "$@"
+	fi
+}
+
+function sh_setup_Packages() {
+	local packagesToInstall="${PACKAGEDEP[@]}"
+	local DISTRO=$(detect_distro)
+
+	case "$DISTRO" in
+	void)
+		msg_info "Instalando necessários pacotes para VOID"
+		cmd_sudo xbps-install -Sy "${PACKAGEDEP[@]}" 1>/dev/null
+		return "$?"
+		;;
+	chililinux | arch | manjaro | biglinux)
+		msg_info "Instalando necessários pacotes para ${DISTRO^^}VOID"
+      sudo pacman -Sy --needed --quiet --noconfirm "${PACKAGEDEP[@]}" 1>/dev/null
+      return "$?"
+		;;
+	*) return 1
+		;;
+	esac
+}
+
 function sh_checkDependencies() {
 	local d
-	local errorFound=0
+	local errorFound=false
 	declare -a missing
 
 	for d in "${DEPENDENCIES[@]}"; do
-		[[ -z $(command -v "$d") ]] && missing+=("$d") && errorFound=1 && info_msg "${red}$(gettext "ERRO: não consegui encontrar o comando")${reset}: ${cyan}'$d'${reset}"
+		if ! command -v "$d" &>/dev/null; then
+			info_msg "${red}Erro${rst}: Não foi possível encontrar o comando ${cyan}'$d'${rst} -> instalar o pacote ${cyan}${PACKAGEDEP[$d]}${rst}"
+			missing+=("$d")
+			errorFound=true
+		fi
 	done
 
-	if ((errorFound)); then
-		echo "${yellow}---------------$(gettext "IMPOSSÍVEL CONTINUAR")-------------${reset}"
-		echo "$(gettext "Este script precisa dos comandos listados acima")"
-		echo "$(gettext "Instale-os e/ou verifique se eles estão em seu") ${red}\$PATH${reset}"
-		echo "${yellow}---------------$(gettext "IMPOSSÍVEL CONTINUAR")-------------${reset}"
-		die "$(gettext "Instalação abortada!")"
+	if $errorFound; then
+		echo "${yellow}-----------------IMPOSSÍVEL CONTINUAR---------------${rst}"
+		echo "Este script precisa dos comandos listados acima"
+		echo "Instale-os e/ou verifique se eles estão em seu ${red}\$PATH${rst}"
+		echo "${yellow}-----------------IMPOSSÍVEL CONTINUAR---------------${rst}"
+		if conf "Deseja instalar os pacotes necessários ?"; then
+			sh_setup_Packages
+			sh_checkDependencies #overload
+		else
+			die "Encerrando..."
+		fi
 	fi
 }
 
@@ -886,6 +964,24 @@ function readconf() {
 		read -n1 -s -r -p "$msg [S/n]"
 	else
 		read -n1 -s -r -p "$msg [Y/n]"
+	fi
+	echo -n -e "$reset"
+	case "${REPLY^}" in
+	[SY]) return 0 ;;
+	"") return 0 ;;
+	*) return 1 ;;
+	esac
+}
+
+function conf() {
+	local msg="$1"
+	local color="${2:-${red}}"
+
+	echo -n -e "$color"
+	if [[ $LC_DEFAULT -eq 0 ]]; then
+		read -r -p "$msg [S/n]"
+	else
+		read -r -p "$msg [Y/n]"
 	fi
 	echo -n -e "$reset"
 	case "${REPLY^}" in
@@ -2902,7 +2998,7 @@ function sh_show_tabelas() {
 
 function populate_databases() {
 	if yesno 17 11 "$(gettext "CUIDADO! Procedimento irá inserir dados aleatórios para testes nas tabelas. Confirma ?")"; then
-	  sh_fundo
+		sh_fundo
 		populate_database_produtos
 		populate_database_fornecedor
 		populate_database_vendas
@@ -3439,7 +3535,7 @@ function sobre::about() {
 	print $((nrow + 2)) $((nleft + 1)) "$(padc "$(gettext "Simples frente de caixa para mercearias pequenas feito em shell script e sqlite!")" "$((lastcol - 22))" ' ')" "$green"
 	print $((nrow + 4)) $((nleft + 1)) "$(padc "Copyright © 2023-2023, Jefferson Carneiro <slackjeff>. Todos os direitos reservados." "$((lastcol - 22))" ' ')" "$black"
 	print $((nrow + 5)) $((nleft + 1)) "$(padc "https://github.com/slackjeff/pdvShell" "$((lastcol - 22))" ' ')" "$black"
-	print $((nrow + 6)) $((nleft + 1)) "$(padc "Copyright © 2023-2024, Vilmar Catafesta <vcatafesta@gmail.com>. Todos os direitos reservados." "$((lastcol - 22))" ' ')" "$black"
+	print $((nrow + 6)) $((nleft + 1)) "$(padc "Copyright © 2023-2025, Vilmar Catafesta <vcatafesta@gmail.com>. Todos os direitos reservados." "$((lastcol - 22))" ' ')" "$black"
 	print $((nrow + 7)) $((nleft + 1)) "$(padc "https://github.com/vcatafesta/pdvShell" "$((lastcol - 22))" ' ')" "$black"
 	print $((nrow + 9)) $((nleft + 1)) "$(padc "$(gettext "O pdvShell é disponibilizado para você sob a Licença MIT, e")" "$((lastcol - 22))" ' ')" "$white"
 	print $((nrow + 10)) $((nleft + 1)) "$(padc "$(gettext "inclui software de código aberto sob uma variedade de outras licenças.")" "$((lastcol - 22))" ' ')" "$white"
