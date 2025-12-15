@@ -1351,7 +1351,7 @@ function tela() {
 	sh_fundo
 	titulo 0 "$_SYSTEM_" "${Acores[cabecalho]}" "$(date)" "$_VERSION_"
 	titulo 1 "${Menu_Principal^^}" "${Acores[statussup]}"
-	logo
+#	logo
 	titulo "$(($(lastrow) - 1))" "${Aempresa[razao]}" "${Acores[statusinf]}" "$PWD" "$USER"
 }
 
@@ -3316,13 +3316,48 @@ function show_menu() {
 			printf "$item_formatado$reset" ""
 		done
 
-		read -r -n 1 -s tecla
-		case $tecla in
-		"A") ((selecionado = selecionado > 0 ? selecionado - 1 : quantidade_itens - 1)) ;;
-		"B") ((selecionado = selecionado < quantidade_itens - 1 ? selecionado + 1 : 0)) ;;
-		[0-9]) return "$tecla" ;;
-		"") return $((selecionado + 1)) ;;
-		esac
+      read -rsn1 tecla
+      case "$tecla" in
+        $'\e')
+          if read -rsn1 -t 0.01 t1 && [[ $t1 == "[" ]]; then
+            read -rsn1 t2
+            case "$t2" in
+              A)  # UP (circular)
+                ((selecionado = selecionado > 0 ? selecionado - 1 : quantidade_itens - 1))
+                ;;
+              B)  # DOWN (circular)
+                ((selecionado = selecionado < quantidade_itens - 1 ? selecionado + 1 : 0))
+                ;;
+              5)  # PG_UP  -> ESC [ 5 ~  (circular)
+                read -rsn1 t3
+                [[ $t3 == "~" ]] && {
+                  if (( selecionado == 0 )); then
+                    selecionado=$((quantidade_itens - 1))
+                  else
+                    selecionado=0
+                  fi
+                }
+                ;;
+              6)  # PG_DOWN -> ESC [ 6 ~ (circular)
+                read -rsn1 t3
+                [[ $t3 == "~" ]] && {
+                  if (( selecionado == quantidade_itens - 1 )); then
+                    selecionado=0
+                  else
+                    selecionado=$((quantidade_itens - 1))
+                  fi
+                }
+                ;;
+            esac
+          else
+            while read -rsn1 -t 0.01; do :; done
+            return 0
+          fi
+          ;;
+        ""|$'\n'|$'\r')
+          return $((selecionado + 1))   # ENTER (1-based)
+          ;;
+      esac
 	done
 }
 
@@ -3716,7 +3751,7 @@ function configuracao::pano_de_fundo() {
 	while true; do
 		tela
 		titulo 1 "$xtitle" "${Acores[statussup]}"
-		show_menu 11 10 "$xtitle" "${options[@]}"
+		show_menu 05 10 "$xtitle" "${options[@]}"
 		opcao="$?"
 
 		case "$opcao" in
@@ -3753,14 +3788,14 @@ function menu_configuracao() {
 	while true; do
 		tela
 		titulo 1 "$xtitle" "${Acores[statussup]}"
-		show_menu 11 10 "$xtitle" "${options[@]}"
+		show_menu 05 10 "$xtitle" "${options[@]}"
 		opcao="$?"
 
 		case "$opcao" in
+		14 | 0) return ;;
 		1) configuracao::dados_empresa ;;
 		[2-9] | 1[0-2]) configuracao::cores "$((opcao - 2))" "${options[$((opcao - 1))]}" ;;
 		13) configuracao::pano_de_fundo ;;
-		14 | 0) return ;;
 		*) msgerror "$Opcao_invalida" ;;
 		esac
 	done
